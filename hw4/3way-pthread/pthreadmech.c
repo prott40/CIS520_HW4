@@ -2,105 +2,132 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
-#define NUM_THREADS 4  // Number of threads to use for parallelism
-#define LINES_PER_BATCH 1000  // Number of lines to read per batch
-#define STRING_SIZE 16  // Maximum length of each line (assuming no line exceeds this length)
-#define MAX_FILE_PATH "/~dan/625/wiki_dump.txt"  // Path to the input file (adjust this path)
+#define NUM_THREADS 4
+#define BUFFER_LEN 2001
 
-pthread_mutex_t mutex;  // Mutex for synchronization when printing results
-
-// Global array to store the maximum ASCII values for each line processed by threads
-int max_ascii_values[NUM_THREADS][LINES_PER_BATCH];  // Each thread has its own batch of results
+typedef struct {
+    char *filename; // may need to be file descriptor
+    long start_line;// where begins
+    long end_line;// where it ends
+    int *results; //
+} Thread;
 
 // Function to find the maximum ASCII value in a given line
-int find_max_ascii(char *line) {
+int find_max_ascii(const char *line) {
     int max_value = 0;
+    // hold max value while iterating over the string 
     for (int i = 0; line[i] != '\0'; i++) {
-        int ascii_value = (int) line[i];
-        if (ascii_value > max_value) {
-            max_value = ascii_value;
+        unsigned char c = (unsigned char)line[i];
+        if (c > max_value) {
+            max_value = c;
         }
     }
+    // return the max
     return max_value;
 }
 
-// Function to process a batch of lines from the file (Each thread processes its batch independently)
-void *process_batch(void *arg) {
-    FILE *file = (FILE *)arg;
-    char line[STRING_SIZE];  // Buffer for reading each line
-    int thread_id = *((int *)arg);  // Thread ID is passed as an argument
-    int start_line = thread_id * LINES_PER_BATCH;  // Start line for this thread
-
-    fseek(file, start_line * STRING_SIZE, SEEK_SET);  // Move file pointer to the correct position
-
-    for (int i = 0; i < LINES_PER_BATCH; i++) {
-        if (fgets(line, STRING_SIZE, file) == NULL) {
-            break;  // End of file reached
+// Thread function to process lines
+void *process_lines(void *arg) {
+    //
+    Thread *current = (Thread *)arg;
+    FILE *file = fopen(current->filename, "r");
+    if (file == NULL) {
+        perror("Failed to open file in thread");
+        pthread_exit(NULL);
+    }
+    
+    // Skip to start_line
+    char buffer[BUFFER_LEN]; // length that simon read for
+    long line_count = 0;
+    while (line_count < current->start_line && fgets(buffer, sizeof(buffer), file) != NULL) {
+        line_count++;
+    }
+    
+    // Process assigned lines
+    long current_line = current->start_line;
+    while (current_line < current->end_line && fgets(buffer, sizeof(buffer), file) != NULL) {
+        // Remove newline if present
+        size_t len = strnlen(buffer,BUFFER_LEN);
+        if (len > 0 && buffer[len-1] == '\n') {
+            buffer[len-1] = '\0';
         }
         
-        // Find the maximum ASCII value for the line and store it in the thread's result array
-        max_ascii_values[thread_id][i] = find_max_ascii(line);
+        current->results[current_line - current->start_line] = find_max_ascii(buffer);
+        current_line++;
     }
-
+    
+    fclose(file);
     pthread_exit(NULL);
 }
 
-// Function to print the results of each line
-void print_results(int total_lines_processed) {
-    for (int i = 0; i < NUM_THREADS; i++) {
-        for (int j = 0; j < LINES_PER_BATCH; j++) {
-            if (i * LINES_PER_BATCH + j >= total_lines_processed) {
-                break;
-            }
-            printf("%d: %d\n", i * LINES_PER_BATCH + j, max_ascii_values[i][j]);
-        }
-    }
-}
-
-// Main function to read the file and spawn threads to process batches
 int main() {
-    FILE *file = fopen(MAX_FILE_PATH, "r");
+    // save file name
+    const char *filename = "/homes/dan/625/wiki_dump.txt";
+    
+    // Count total lines in file
+    FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        perror("Failed to open the file");
-        exit(1);
+        perror("Failed to open file");
+        return 1;
     }
-
+    
+    long total_lines = 0;
+    char buffer[BUFFER_LEN]; // Large enough for any line
+    while (fgets(buffer, sizeof(buffer), file) != NULL) {
+        total_lines++;
+    }
+    
+    fclose(file);
+    
+    printf("Total lines in file: %ld\n", total_lines);
+    
+    // Allocate memory for all results
+    int *all_results = (int *)malloc(total_lines * sizeof(int));
+    if (all_results == NULL) {
+        perror("Memory allocation failed");
+        return 1;
+    }
+    
+    // Create and start threads
     pthread_t threads[NUM_THREADS];
-    int thread_ids[NUM_THREADS];
-    int total_lines = 0;
-    int rc;
-
-    // Initialize the mutex
-    pthread_mutex_init(&mutex, NULL);
-
-    // Read the file in batches and process concurrently
-    while (!feof(file)) {
-        for (int i = 0; i < NUM_THREADS; i++) {
-            // Each thread processes a specific batch of lines
-            thread_ids[i] = i;
-            rc = pthread_create(&threads[i], NULL, process_batch, (void *)&thread_ids[i]);
-            if (rc) {
-                printf("ERROR: Return code from pthread_create() is %d\n", rc);
-                exit(1);
-            }
-            total_lines += LINES_PER_BATCH;
+    Thread thread_args[NUM_THREADS];
+    // calulate threads per line
+    long lines_per_thread = total_lines / NUM_THREADS;
+    long remainder = total_lines % NUM_THREADS;
+    
+    long start_line = 0;
+    // set arguments for each thread
+    for (int i = 0; i < NUM_THREADS; i++) {
+        // adjust for remaineder
+        long lines_for_this_thread = lines_per_thread + (i < remainder ? 1 : 0);
+        // set arguments
+        thread_args[i].filename = (char *)filename;
+        thread_args[i].start_line = start_line;
+        thread_args[i].end_line = start_line + lines_for_this_thread;
+        thread_args[i].results = &all_results[start_line];
+        //crete thread with all argumetns
+        int rc = pthread_create(&threads[i], NULL, process_lines, (void *)&thread_args[i]);
+        if (rc) {
+            printf("ERROR: Return code from pthread_create() is %d\n", rc);
+            free(all_results);
+            return 1;
         }
-
-        // Wait for threads to finish processing the current batch
-        for (int i = 0; i < NUM_THREADS; i++) {
-            pthread_join(threads[i], NULL);
-        }
-
-        // Print the results for the current batch
-        print_results(total_lines);
+        // increase start by lines for the thread
+        start_line += lines_for_this_thread;
     }
-
-    // Destroy the mutex after use
-    pthread_mutex_destroy(&mutex);
-
-    fclose(file);  // Close the file
-
-    printf("Main: Program completed. Exiting.\n");
+    
+    // Wait for all threads to complete
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+    
+    // Print results
+    for (long i = 0; i < total_lines; i++) {
+        printf("%ld: %d\n", i, all_results[i]);
+    }
+    
+    free(all_results);
     return 0;
 }
