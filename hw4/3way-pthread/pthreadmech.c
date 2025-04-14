@@ -4,7 +4,170 @@
 #include <string.h>
 #include <limits.h>
 
-#define NUM_THREADS 4
+#define NUM_THREADS 16
+#define BUFFER_LEN 4096  // Increased buffer size
+
+typedef struct {
+    char *filename;
+    long start_line;
+    long end_line;
+    int *results;
+} Thread;
+
+// Function to find the maximum ASCII value in a given line
+int find_max_ascii(const char *line) {
+    int max_value = 0;
+    for (int i = 0; line[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)line[i];
+        if (c > max_value) {
+            max_value = c;
+        }
+    }
+    return max_value;
+}
+
+// Thread function to process lines
+void *process_lines(void *arg) {
+    Thread *current = (Thread *)arg;
+    FILE *file = fopen(current->filename, "r");
+    if (file == NULL) {
+        perror("Failed to open file in thread");
+        pthread_exit(NULL);
+    }
+    
+    // Skip to start_line
+    char buffer[BUFFER_LEN];
+    long line_count = 0;
+    while (line_count < current->start_line && fgets(buffer, sizeof(buffer), file) != NULL) {
+        // For long lines that exceed buffer size, read until end of line
+        while (buffer[strlen(buffer) - 1] != '\n' && !feof(file)) {
+            if (fgets(buffer, sizeof(buffer), file) == NULL) break;
+        }
+        line_count++;
+    }
+    
+    // Process assigned lines
+    line_count = 0; // Reset counter for processing assigned lines
+    while (line_count < (current->end_line - current->start_line) && fgets(buffer, sizeof(buffer), file) != NULL) {
+        // Handle case where line is longer than buffer
+        char *full_line = malloc(BUFFER_LEN * 2); // Allocate extra space
+        if (!full_line) {
+            perror("Memory allocation failed");
+            fclose(file);
+            pthread_exit(NULL);
+        }
+        
+        strcpy(full_line, buffer);
+        size_t line_len = strlen(full_line);
+        
+        // If line didn't end with newline and we're not at EOF, read the rest of the line
+        while (line_len > 0 && full_line[line_len - 1] != '\n' && !feof(file)) {
+            if (fgets(buffer, sizeof(buffer), file) != NULL) {
+                full_line = realloc(full_line, line_len + BUFFER_LEN);
+                if (!full_line) {
+                    perror("Memory reallocation failed");
+                    fclose(file);
+                    pthread_exit(NULL);
+                }
+                strcat(full_line, buffer);
+                line_len = strlen(full_line);
+            } else {
+                break;
+            }
+        }
+        
+        // Remove newline if present
+        if (line_len > 0 && full_line[line_len - 1] == '\n') {
+            full_line[line_len - 1] = '\0';
+        }
+        
+        current->results[line_count] = find_max_ascii(full_line);
+        free(full_line);
+        line_count++;
+    }
+    
+    fclose(file);
+    pthread_exit(NULL);
+}
+
+int main() {
+    const char *filename = "/homes/dan/625/wiki_dump.txt";
+    
+    // Count total lines in file properly
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Failed to open file");
+        return 1;
+    }
+    
+    long total_lines = 0;
+    char buffer[BUFFER_LEN];
+    while (fgets(buffer, sizeof(buffer), file) != NULL) {
+        // For long lines that exceed buffer size, read until end of line
+        while (buffer[strlen(buffer) - 1] != '\n' && !feof(file)) {
+            if (fgets(buffer, sizeof(buffer), file) == NULL) break;
+        }
+        total_lines++;
+    }
+    
+    fclose(file);
+    
+    printf("Total lines in file: %ld\n", total_lines);
+    
+    // Allocate memory for all results
+    int *all_results = (int *)malloc(total_lines * sizeof(int));
+    if (all_results == NULL) {
+        perror("Memory allocation failed");
+        return 1;
+    }
+    
+    // Initialize results to avoid garbage values
+    memset(all_results, 0, total_lines * sizeof(int));
+    
+    // Create and start threads
+    pthread_t threads[NUM_THREADS];
+    Thread thread_args[NUM_THREADS];
+    long lines_per_thread = total_lines / NUM_THREADS;
+    long remainder = total_lines % NUM_THREADS;
+    
+    long start_line = 0;
+    for (int i = 0; i < NUM_THREADS; i++) {
+        long lines_for_this_thread = lines_per_thread + (i < remainder ? 1 : 0);
+        thread_args[i].filename = (char *)filename;
+        thread_args[i].start_line = start_line;
+        thread_args[i].end_line = start_line + lines_for_this_thread;
+        thread_args[i].results = &all_results[start_line];
+        
+        int rc = pthread_create(&threads[i], NULL, process_lines, (void *)&thread_args[i]);
+        if (rc) {
+            printf("ERROR: Return code from pthread_create() is %d\n", rc);
+            free(all_results);
+            return 1;
+        }
+        start_line += lines_for_this_thread;
+    }
+    
+    // Wait for all threads to complete
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+    
+    // Print results
+    for (long i = 0; i < total_lines; i++) {
+        printf("%ld: %d\n", i, all_results[i]);
+    }
+    
+    free(all_results);
+    return 0;
+}
+/*
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+
+#define NUM_THREADS 16
 #define BUFFER_LEN 2001
 
 typedef struct {
@@ -131,3 +294,4 @@ int main() {
     free(all_results);
     return 0;
 }
+*/
