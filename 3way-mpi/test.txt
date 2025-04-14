@@ -1,0 +1,6 @@
+ab
+bc
+cd
+de
+ef
+fg
