@@ -1,0 +1,4 @@
+# Ignore the compiled binary
+max_char
+slurm-*.out
+*.out
