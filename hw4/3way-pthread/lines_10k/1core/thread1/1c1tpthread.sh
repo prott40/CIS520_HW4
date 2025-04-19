@@ -1,0 +1,13 @@
+#!/bin/bash -l
+#SBATCH --mem-per-cpu=512MB           ## Memory per core
+#SBATCH --cpus-per-task=1       ## Number of CPU cores
+#SBATCH --nodes=1                  ## Run on 1 node
+#SBATCH --ntasks=1               ## 1 task total (read the wikidump)
+#SBATCH --constraint=moles       ## Use moles 
+##OUTPUT="/homes/pmrottin/hw4/3way-pthread/lines_10k/1core/thread1/1c1tstat.csv"
+##PRO="./max_char"
+gcc -pthread -O2 -g -o max_char pthreadmech.c
+##run all 10 tests
+sbatch --mem-per-cpu=512MB --cpus-per-task=1 --nodes=1 --ntasks=1 --constraint=moles ./1c1tperf.sh
+
+

@@ -6,7 +6,7 @@
 
 #define NUM_THREADS 1
 #define BUFFER_LEN 4096  // More reasonable buffer size
-#define MAX_LINE_READ 1000000
+#define MAX_LINE_READ 10000
 typedef struct {
     char *filename;
     long start_line;
@@ -162,7 +162,7 @@ int main() {
     fclose(file);
     */
     // Tell how long
-    printf("Total lines in file: %ld\n", total_lines);
+    //printf("Total lines in file: %ld\n", total_lines);
     
     // Allocate memory for all results
     int *all_results = (int *)malloc(total_lines * sizeof(int));
