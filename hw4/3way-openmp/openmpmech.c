@@ -7,11 +7,9 @@
 #define NUM_THREADS 16
 #define BUFFER_LEN 4096
 
-// Function to find the maximum ASCII value in a given line
 int find_max_ascii(const char *line)
 {
     int max_value = 0;
-    // Loop over the line before the end of string char
     for (int i = 0; line[i] != '\0'; i++)
     {
         unsigned char c = (unsigned char)line[i];
@@ -25,7 +23,7 @@ int find_max_ascii(const char *line)
 
 int main()
 {
-
+    // really big file
     const char *filename = "/homes/dan/625/wiki_dump.txt";
     FILE *file = fopen(filename, "r");
     if (file == NULL)
@@ -34,7 +32,7 @@ int main()
         return 1;
     }
 
-    // Read all lines into memory
+    //double pointer for holding strings
     char **lines = NULL;
     size_t lines_capacity = 1024;
     size_t total_lines = 0;
@@ -50,7 +48,6 @@ int main()
 
     while (fgets(buffer, sizeof(buffer), file) != NULL)
     {
-        // Handle lines longer than buffer
         size_t line_len = strnlen(buffer, BUFFER_LEN);
         char *full_line = malloc(BUFFER_LEN * 2);
         if (!full_line)
@@ -110,7 +107,6 @@ int main()
     fclose(file);
     printf("Total lines in file: %ld\n", total_lines);
 
-    // Prepare results array
     int *results = malloc(total_lines * sizeof(int));
     if (!results)
     {
@@ -118,18 +114,18 @@ int main()
         return 1;
     }
 
-    // Parallel processing with OpenMP
+    // openMP call, super easy
     #pragma omp parallel for num_threads(NUM_THREADS)
     for (long i = 0; i < total_lines; i++)
     {
         results[i] = find_max_ascii(lines[i]);
     }
 
-    // Print results
+    // print results, should I parallelize this as well?
     for (long i = 0; i < total_lines; i++)
     {
         printf("%ld: %d\n", i, results[i]);
-        free(lines[i]);  // Clean up each line
+        free(lines[i]);
     }
 
     free(lines);

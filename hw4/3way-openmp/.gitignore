@@ -2,3 +2,6 @@
 max_char
 slurm-*.out
 *.out
+perf*
+*.o
+module_load.sh

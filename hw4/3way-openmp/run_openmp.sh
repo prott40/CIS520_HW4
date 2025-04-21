@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1               # 1 task total (read the wikidump)
 #SBATCH --constraint=moles       # Use moles 
 # Compile with flags
-gcc -fopenmp -02 -g -o max_char openmpmech.c
+gcc -fopenmp -O2 -g -o max_char openmpmech.c
 # Run original perf stat for basic metrics
 perf stat -e cycles,instructions,cache-misses,context-switches,minor-faults,major-faults \
     -o perf_stat_output.txt \
