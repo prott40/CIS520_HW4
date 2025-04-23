@@ -1,0 +1,16 @@
+# started on Mon Apr 21 16:08:54 2025
+
+
+ Performance counter stats for './max_char' (10 runs):
+
+             36.77 msec task-clock:u                     #    0.210 CPUs utilized               ( +-  0.51% )
+                 0      context-switches:u               #    0.000 /sec                      
+                 0      cpu-migrations:u                 #    0.000 /sec                      
+               126      page-faults:u                    #    3.427 K/sec                       ( +-  0.38% )
+        57,243,643      cycles:u                         #    1.557 GHz                         ( +-  0.09% )
+       154,148,873      instructions:u                   #    2.69  insn per cycle              ( +-  0.00% )
+        26,185,458      branches:u                       #  712.194 M/sec                       ( +-  0.00% )
+           120,515      branch-misses:u                  #    0.46% of all branches             ( +-  0.37% )
+
+             0.175 +- 0.137 seconds time elapsed  ( +- 78.34% )
+

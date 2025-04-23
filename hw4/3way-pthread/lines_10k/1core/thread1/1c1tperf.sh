@@ -4,8 +4,7 @@
 #SBATCH --nodes=1                  ## Run on 1 node
 #SBATCH --ntasks=1               ## 1 task total (read the wikidump)
 #SBATCH --constraint=moles       ## Use moles --field-separator=','
-##perf stat --repeat=10 -o /homes/pmrottin/hw4/3way-pthread/lines_10k/1core/thread1/time.txt ./max_char
-
+#SBATCH --output=slurm-%j.out ## keep outfile in file
 # Run perf stat (collect time elapsed & CPU) and output to perf.txt
 perf stat --repeat=10 -o perf.txt ./max_char > /dev/null 2>&1
 
