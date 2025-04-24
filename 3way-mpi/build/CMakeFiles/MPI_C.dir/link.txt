@@ -1,0 +1,1 @@
+/opt/software/software/GCCcore/11.3.0/bin/cc -std=c11 -Wall -Wextra -Wshadow -Werror -D_XOPEN_SOURCE=500 -rdynamic CMakeFiles/MPI_C.dir/src/mpi.c.o -o MPI_C  -lmpi 

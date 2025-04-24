@@ -1,0 +1,3 @@
+/homes/acerna/CIS520/hw4/3way-mpi/build/CMakeFiles/MPI_C.dir
+/homes/acerna/CIS520/hw4/3way-mpi/build/CMakeFiles/edit_cache.dir
+/homes/acerna/CIS520/hw4/3way-mpi/build/CMakeFiles/rebuild_cache.dir
