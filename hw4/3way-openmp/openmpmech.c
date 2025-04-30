@@ -3,132 +3,96 @@
 #include <string.h>
 #include <limits.h>
 #include <omp.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#define NUM_THREADS 16
-#define BUFFER_LEN 4096
+#define MAX_LINE_READ 1000000
 
-int find_max_ascii(const char *line)
-{
+int find_max_ascii(const char *line, size_t len) {
     int max_value = 0;
-    for (int i = 0; line[i] != '\0'; i++)
-    {
-        unsigned char c = (unsigned char)line[i];
-        if (c > max_value)
-        {
-            max_value = c;
+    for (size_t i = 0; i < len; i++) {
+        if ((int)line[i] > max_value) {
+            max_value = (int)line[i];
         }
     }
     return max_value;
 }
 
-int main()
-{
-    // really big file
+int main() {
+    //create a file descriptor for the text file
     const char *filename = "/homes/dan/625/wiki_dump.txt";
-    FILE *file = fopen(filename, "r");
-    if (file == NULL)
-    {
+    int fd = open(filename, O_RDONLY);
+    if (fd == -1) {
         perror("Failed to open file");
         return 1;
     }
 
-    //double pointer for holding strings
-    char **lines = NULL;
-    size_t lines_capacity = 1024;
-    size_t total_lines = 0;
-    char buffer[BUFFER_LEN];
-
-    lines = malloc(lines_capacity * sizeof(char *));
-    if (!lines)
-    {
-        perror("Initial memory allocation failed");
-        fclose(file);
+    //get size of the file
+    struct stat sb;
+    if (fstat(fd, &sb) == -1) {
+        perror("Failed to get file size");
+        close(fd);
         return 1;
     }
 
-    while (fgets(buffer, sizeof(buffer), file) != NULL)
-    {
-        size_t line_len = strnlen(buffer, BUFFER_LEN);
-        char *full_line = malloc(BUFFER_LEN * 2);
-        if (!full_line)
-        {
-            perror("Memory allocation failed");
-            fclose(file);
-            return 1;
-        }
-
-        snprintf(full_line, BUFFER_LEN * 2, "%s", buffer);
-
-        while (line_len > 0 && full_line[line_len - 1] != '\n' && !feof(file))
-        {
-            if (fgets(buffer, sizeof(buffer), file) != NULL)
-            {
-                size_t buffer_len = strnlen(buffer, BUFFER_LEN);
-                size_t new_size = line_len + buffer_len + 1;
-                char *temp = realloc(full_line, new_size);
-                if (!temp)
-                {
-                    perror("Memory reallocation failed");
-                    free(full_line);
-                    fclose(file);
-                    return 1;
-                }
-                full_line = temp;
-                snprintf(full_line + line_len, buffer_len + 1, "%s", buffer);
-                line_len = strnlen(full_line, new_size);
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        if (line_len > 0 && full_line[line_len - 1] == '\n')
-        {
-            full_line[line_len - 1] = '\0';
-        }
-
-        if (total_lines >= lines_capacity)
-        {
-            lines_capacity *= 2;
-            char **temp_lines = realloc(lines, lines_capacity * sizeof(char *));
-            if (!temp_lines)
-            {
-                perror("Reallocating lines buffer failed");
-                fclose(file);
-                return 1;
-            }
-            lines = temp_lines;
-        }
-
-        lines[total_lines++] = full_line;
-    }
-
-    fclose(file);
-    printf("Total lines in file: %ld\n", total_lines);
-
-    int *results = malloc(total_lines * sizeof(int));
-    if (!results)
-    {
-        perror("Memory allocation failed for results");
+    // memory map the file using previous size
+    // can I just memory map the max lines?
+    size_t file_size = sb.st_size;
+    char *data = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (data == MAP_FAILED) {
+        perror("Failed to mmap file");
+        close(fd);
         return 1;
     }
 
-    // openMP call, super easy
-    #pragma omp parallel for num_threads(NUM_THREADS)
-    for (long i = 0; i < total_lines; i++)
-    {
-        results[i] = find_max_ascii(lines[i]);
+    //allocate the array which hold the ptrs to each line
+    const char **line_ptrs = malloc(MAX_LINE_READ * sizeof(char *));
+    //allocate the array which stores the length of each line
+    size_t *line_lens = malloc(MAX_LINE_READ * sizeof(size_t));
+    //allocate the array that holds the greatest char in each line
+    int *results = malloc(MAX_LINE_READ * sizeof(int));
+    if (!line_ptrs || !line_lens || !results) {
+        perror("Memory allocation failed");
+        munmap(data, file_size);
+        close(fd);
+        free(line_ptrs);
+        free(line_lens);
+        free(results);
+        return 1;
     }
 
-    // print results, should I parallelize this as well?
-    for (long i = 0; i < total_lines; i++)
-    {
-        printf("%ld: %d\n", i, results[i]);
-        free(lines[i]);
+    //Go through the file and make a pointer to each line along with its line length
+    size_t line_start = 0, line_end = 0, line_count = 0;
+    while (line_end < file_size && line_count < MAX_LINE_READ) {
+        if (data[line_end] == '\n') {
+            size_t len = line_end - line_start;
+            line_ptrs[line_count] = &data[line_start];
+            line_lens[line_count] = len;
+            line_count++;
+            line_start = line_end + 1;
+        }
+        line_end++;
     }
 
-    free(lines);
+    printf("Total lines read: %zu\n", line_count);
+
+    #pragma omp parallel for
+    for (long i = 0; i < (long)line_count; i++) {
+        results[i] = find_max_ascii(line_ptrs[i], line_lens[i]);
+    }
+
+    
+    for (size_t i = 0; i < line_count; i++) {
+        printf("%zu: %d\n", i, results[i]);
+    }
+
+    munmap(data, file_size);
+    close(fd);
+    free(line_ptrs);
+    free(line_lens);
     free(results);
 
     return 0;

@@ -5,7 +5,7 @@ LDFLAGS   = -fopenmp        # link OpenMP library
 
 # Name of the program to generate
 PROGRAM   = max_char       # Name of the binary
-SRCS      = openmpmech.c    
+SRCS      = openmpmech.c     
 OBJS      = $(SRCS:.c=.o)   # Object file(s)
 
 #
