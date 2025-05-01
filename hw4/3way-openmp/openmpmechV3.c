@@ -69,6 +69,12 @@ int main() {
 
     printf("Total lines read: %zu\n", line_count);
 
+    //file to log the loop time
+    FILE *log = fopen("perf_stat_summary.txt", "a");  // Open in append mode
+    if (!log) {
+        perror("Failed to open perf_stat_summary.txt for appending");
+        return 1;
+    }
     double start_time = omp_get_wtime();
 
     #pragma omp parallel for
@@ -77,7 +83,8 @@ int main() {
     }
 
     double end_time = omp_get_wtime();
-    printf("Parallel max-char computation time: %f seconds\n", end_time - start_time);
+    fprintf(log, "Parallel max-char computation time: %f seconds\n", end_time - start_time);
+    fclose(log);
 
     // Parallel output using thread-local buffers
     int num_threads = omp_get_max_threads();
