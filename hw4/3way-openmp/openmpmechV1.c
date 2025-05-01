@@ -22,6 +22,7 @@ int find_max_ascii(const char *line, size_t len) {
 }
 
 int main() {
+    //create a file descriptor for the text file
     const char *filename = "/homes/dan/625/wiki_dump.txt";
     int fd = open(filename, O_RDONLY);
     if (fd == -1) {
@@ -29,6 +30,7 @@ int main() {
         return 1;
     }
 
+    //get size of the file
     struct stat sb;
     if (fstat(fd, &sb) == -1) {
         perror("Failed to get file size");
@@ -36,6 +38,8 @@ int main() {
         return 1;
     }
 
+    // memory map the file using previous size
+    // can I just memory map the max lines?
     size_t file_size = sb.st_size;
     char *data = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (data == MAP_FAILED) {
@@ -44,17 +48,23 @@ int main() {
         return 1;
     }
 
+    //allocate the array which hold the ptrs to each line
     const char **line_ptrs = malloc(MAX_LINE_READ * sizeof(char *));
+    //allocate the array which stores the length of each line
     size_t *line_lens = malloc(MAX_LINE_READ * sizeof(size_t));
+    //allocate the array that holds the greatest char in each line
     int *results = malloc(MAX_LINE_READ * sizeof(int));
     if (!line_ptrs || !line_lens || !results) {
         perror("Memory allocation failed");
         munmap(data, file_size);
         close(fd);
+        free(line_ptrs);
+        free(line_lens);
+        free(results);
         return 1;
     }
 
-    // Extract lines
+    //Go through the file and make a pointer to each line along with its line length
     size_t line_start = 0, line_end = 0, line_count = 0;
     while (line_end < file_size && line_count < MAX_LINE_READ) {
         if (data[line_end] == '\n') {
@@ -69,6 +79,12 @@ int main() {
 
     printf("Total lines read: %zu\n", line_count);
 
+    //file to log the loop time
+    FILE *log = fopen("perf_stat_summary.txt", "a");  // Open in append mode
+    if (!log) {
+        perror("Failed to open perf_stat_summary.txt for appending");
+        return 1;
+    }
     double start_time = omp_get_wtime();
 
     #pragma omp parallel for
@@ -77,44 +93,12 @@ int main() {
     }
 
     double end_time = omp_get_wtime();
-    printf("Parallel max-char computation time: %f seconds\n", end_time - start_time);
+    fprintf(log, "Parallel max-char computation time: %f seconds\n", end_time - start_time);
+    fclose(log);
 
-    // Parallel output using thread-local buffers
-    int num_threads = omp_get_max_threads();
-    char **output_buffers = malloc(num_threads * sizeof(char *));
-    size_t *buffer_sizes = calloc(num_threads, sizeof(size_t));
-    size_t max_line_len = 32; // e.g., "1234567: 255\n"
-
-    for (int t = 0; t < num_threads; t++) {
-        output_buffers[t] = malloc(max_line_len * (line_count / num_threads + 1));
+    for (size_t i = 0; i < line_count; i++) {
+        printf("%zu: %d\n", i, results[i]);
     }
-
-    #pragma omp parallel
-    {
-        int tid = omp_get_thread_num();
-        char *buf = output_buffers[tid];
-        size_t offset = 0;
-
-        #pragma omp for schedule(static)
-        for (long i = 0; i < (long)line_count; i++) {
-            offset += sprintf(&buf[offset], "%ld: %d\n", i, results[i]);
-        }
-        buffer_sizes[tid] = offset;
-    }
-
-    // Write buffers in order
-    FILE *out = fopen("output.txt", "w");
-    if (!out) {
-        perror("Failed to open output.txt");
-        return 1;
-    }
-    for (int t = 0; t < num_threads; t++) {
-        fwrite(output_buffers[t], 1, buffer_sizes[t], out);
-        free(output_buffers[t]);
-    }
-    fclose(out);
-    free(output_buffers);
-    free(buffer_sizes);
 
     munmap(data, file_size);
     close(fd);
