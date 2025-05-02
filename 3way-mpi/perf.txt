@@ -1,0 +1,17 @@
+# started on Fri May  2 14:31:47 2025
+
+
+ Performance counter stats for './MPI_C' (10 runs):
+
+          6,991.93 msec task-clock:u                     #    0.366 CPUs utilized               ( +-  0.28% )
+                 0      context-switches:u               #    0.000 /sec                      
+                 0      cpu-migrations:u                 #    0.000 /sec                      
+             8,251      page-faults:u                    #    1.180 K/sec                       ( +-  0.26% )
+    12,843,109,008      cycles:u                         #    1.837 GHz                         ( +-  0.09% )
+    27,653,477,752      instructions:u                   #    2.15  insn per cycle              ( +-  0.00% )
+     4,115,136,296      branches:u                       #  588.555 M/sec                       ( +-  0.00% )
+         9,082,561      branch-misses:u                  #    0.22% of all branches             ( +-  0.19% )
+
+            19.109 +- 0.334 seconds time elapsed  ( +-  1.75% )
+
+

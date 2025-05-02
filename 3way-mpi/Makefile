@@ -17,8 +17,8 @@ CC        = mpicc
 # Modify TOPDIR if you use your own include files and library files
 #
 
-PROGRAM   = mpi_create			# name of the binary
-SRCS      = openmpi.c			# source file
+PROGRAM   = MPI_C			# name of the binary
+SRCS      = ./src/mpi.c		# source file
 OBJS      = $(SRCS:.c=.o)		# object file
 
 #
