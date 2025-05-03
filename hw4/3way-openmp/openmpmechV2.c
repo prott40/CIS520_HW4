@@ -9,8 +9,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define MAX_LINE_READ 1000000
-
 int find_max_ascii(const char *line, size_t len) {
     int max_value = 0;
     for (size_t i = 0; i < len; i++) {
@@ -21,7 +19,12 @@ int find_max_ascii(const char *line, size_t len) {
     return max_value;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    size_t max_lines = 1000000; // default value
+
+    if (argc >= 2) {
+        max_lines = strtoull(argv[1], NULL, 10);
+    }
     const char *filename = "/homes/dan/625/wiki_dump.txt";
     int fd = open(filename, O_RDONLY);
     if (fd == -1) {
@@ -43,8 +46,8 @@ int main() {
         close(fd);
         return 1;
     }
-
-    size_t *newline_positions = malloc(MAX_LINE_READ * sizeof(size_t));
+    //************************DIFFERENT SECTION START************************
+    size_t *newline_positions = malloc(max_lines * sizeof(size_t));
     if (!newline_positions) {
         perror("Failed to allocate newline position array");
         munmap(data, file_size);
@@ -62,12 +65,12 @@ int main() {
         size_t thread_start = omp_get_thread_num() * chunk_size;
         size_t thread_end = (omp_get_thread_num() == omp_get_max_threads() - 1) ? file_size : thread_start + chunk_size;
 
-        for (size_t i = thread_start; i < thread_end && thread_lines < MAX_LINE_READ; ++i) {
+        for (size_t i = thread_start; i < thread_end && thread_lines < max_lines; ++i) {
             if (data[i] == '\n') {
                 size_t index;
                 #pragma omp atomic capture
                 index = total_lines++;
-                if (index < MAX_LINE_READ) newline_positions[index] = i;
+                if (index < max_lines) newline_positions[index] = i;
             }
         }
     }
@@ -103,7 +106,7 @@ int main() {
 
     free(newline_positions);
     printf("Total lines parsed: %d\n", total_lines);
-
+    //************************DIFFERENT SECTION END************************
     // Time and run the parallel computation
     FILE *log = fopen("perf_stat_summary.txt", "a");
     if (!log) {

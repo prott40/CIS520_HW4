@@ -9,8 +9,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define MAX_LINE_READ 1000000
-
 int find_max_ascii(const char *line, size_t len) {
     int max_value = 0;
     for (size_t i = 0; i < len; i++) {
@@ -21,7 +19,12 @@ int find_max_ascii(const char *line, size_t len) {
     return max_value;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    size_t max_lines = 1000000; // default value
+
+    if (argc >= 2) {
+        max_lines = strtoull(argv[1], NULL, 10);
+    }
     const char *filename = "/homes/dan/625/wiki_dump.txt";
     int fd = open(filename, O_RDONLY);
     if (fd == -1) {
@@ -44,9 +47,9 @@ int main() {
         return 1;
     }
 
-    const char **line_ptrs = malloc(MAX_LINE_READ * sizeof(char *));
-    size_t *line_lens = malloc(MAX_LINE_READ * sizeof(size_t));
-    int *results = malloc(MAX_LINE_READ * sizeof(int));
+    const char **line_ptrs = malloc(max_lines * sizeof(char *));
+    size_t *line_lens = malloc(max_lines * sizeof(size_t));
+    int *results = malloc(max_lines * sizeof(int));
     if (!line_ptrs || !line_lens || !results) {
         perror("Memory allocation failed");
         munmap(data, file_size);
@@ -56,7 +59,7 @@ int main() {
 
     // Extract lines
     size_t line_start = 0, line_end = 0, line_count = 0;
-    while (line_end < file_size && line_count < MAX_LINE_READ) {
+    while (line_end < file_size && line_count < max_lines) {
         if (data[line_end] == '\n') {
             size_t len = line_end - line_start;
             line_ptrs[line_count] = &data[line_start];
