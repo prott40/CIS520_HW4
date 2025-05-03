@@ -1,7 +1,7 @@
 #!/bin/bash
 
 OUTPUT_FILE="results_summary.csv"
-echo "Version,LineCount,Threads,Run,TaskClock,Cycles,Instructions,CacheMisses,ContextSwitches,MinorFaults,MajorFaults,ElapsedTime,CPUUtilization,MaxRSS,MaxCharTime,AppTime" > $OUTPUT_FILE
+echo "Version,LineCount,Threads,Run,TaskClock,Cycles,Instructions,CacheMisses,ContextSwitches,MinorFaults,MajorFaults,ElapsedTime,CPUUtilization,MaxRSS,MaxCharTime" > "$OUTPUT_FILE"
 
 # results loop
 for VERSION_DIR in results/*; do
@@ -10,7 +10,6 @@ for VERSION_DIR in results/*; do
     for CONFIG_DIR in "$VERSION_DIR"/*; do
         CONFIG=$(basename "$CONFIG_DIR")
 
-        # extract LineCount and Thread count from directory name
         if [[ "$CONFIG" == lines_* ]]; then
             LINE_COUNT=$(echo "$CONFIG" | sed -E 's/lines_([0-9]+)_threads_([0-9]+)/\1/')
             THREADS=$(echo "$CONFIG" | sed -E 's/lines_([0-9]+)_threads_([0-9]+)/\2/')
@@ -26,6 +25,7 @@ for VERSION_DIR in results/*; do
             FILE="$RUN_DIR/perf_stat_summary.txt"
 
             if [ -f "$FILE" ]; then
+                MAX_CHAR_TIME=$(grep -i 'Parallel max-char computation time' "$FILE" | awk '{print $(NF-1)}')
                 TASK_CLOCK=$(grep 'task-clock' "$FILE" | awk '{print $1}' | tr -d ,)
                 CYCLES=$(grep 'cycles' "$FILE" | awk '{print $1}' | tr -d ,)
                 INSTR=$(grep 'instructions' "$FILE" | awk '{print $1}' | tr -d ,)
@@ -34,12 +34,10 @@ for VERSION_DIR in results/*; do
                 MIN_FAULTS=$(grep 'minor-faults' "$FILE" | awk '{print $1}' | tr -d ,)
                 MAJ_FAULTS=$(grep 'major-faults' "$FILE" | awk '{print $1}' | tr -d ,)
                 ELAPSED=$(grep 'seconds time elapsed' "$FILE" | awk '{print $1}')
-                UTIL=$(grep 'Estimated CPU utilization' "$FILE" | awk '{print $(NF)}')
-                MAX_RSS=$(grep -i 'max resident set size' "$FILE" | awk '{print $NF}')
-                MAX_CHAR_TIME=$(grep -i 'Parallel max-char computation time' "$FILE" | awk '{print $(NF-1)}')
-                APP_TIME=$(grep -i 'Application time' "$FILE" | awk '{print $(NF-1)}')
+                UTIL=$(grep 'Estimated CPU utilization' "$FILE" | awk -F': ' '{print $2}' | tr -d '%')
+                MAX_RSS=$(grep 'Maximum resident set size' "$FILE" | awk -F': ' '{print $2}')
 
-                echo "$VERSION,$LINE_COUNT,$THREADS,$RUN,$TASK_CLOCK,$CYCLES,$INSTR,$CACHE_MISS,$CTX_SWITCH,$MIN_FAULTS,$MAJ_FAULTS,$ELAPSED,$UTIL,$MAX_RSS,$MAX_CHAR_TIME,$APP_TIME" >> $OUTPUT_FILE
+                echo "$VERSION,$LINE_COUNT,$THREADS,$RUN,$TASK_CLOCK,$CYCLES,$INSTR,$CACHE_MISS,$CTX_SWITCH,$MIN_FAULTS,$MAJ_FAULTS,$ELAPSED,$UTIL,$MAX_RSS,$MAX_CHAR_TIME" >> "$OUTPUT_FILE"
             fi
         done
     done
