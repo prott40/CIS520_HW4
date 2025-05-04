@@ -84,9 +84,9 @@ int main(int argc, char *argv[]) {
     printf("Total lines read: %zu\n", line_count);
 
     //file to log the loop time
-    FILE *log = fopen("perf_stat_summary.txt", "a");  // Open in append mode
+    FILE *log = fopen("custom_log.txt", "w");
     if (!log) {
-        perror("Failed to open perf_stat_summary.txt for appending");
+        perror("Failed to open custom_log.txt for appending");
         return 1;
     }
     double start_time = omp_get_wtime();

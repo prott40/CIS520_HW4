@@ -1,0 +1,2 @@
+Parallel max-char computation time: 1.391338 seconds
+Parallel max-char computation time: 1.217516 seconds

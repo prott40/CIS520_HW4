@@ -76,9 +76,9 @@ int main(int argc, char *argv[]) {
     printf("Total lines read: %zu\n", line_count);
 
     // Time and run the parallel computation
-    FILE *log = fopen("perf_stat_summary.txt", "a");
+    FILE *log = fopen("custom_log.txt", "w");
     if (!log) {
-        perror("Failed to open perf_stat_summary.txt");
+        perror("Failed to open custom_log.txt");
         return 1;
     }
     double start_time = omp_get_wtime();

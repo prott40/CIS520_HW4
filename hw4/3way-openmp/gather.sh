@@ -22,20 +22,25 @@ for VERSION_DIR in results/*; do
 
         for RUN_DIR in "$CONFIG_DIR"/run_*; do
             RUN=$(basename "$RUN_DIR" | cut -d'_' -f2)
-            FILE="$RUN_DIR/perf_stat_summary.txt"
+            PERF_FILE="$RUN_DIR/perf_stat_summary.txt"
+            LOG_FILE="$RUN_DIR/custom_log.txt"
 
-            if [ -f "$FILE" ]; then
-                MAX_CHAR_TIME=$(grep -i 'Parallel max-char computation time' "$FILE" | awk '{print $(NF-1)}')
-                TASK_CLOCK=$(grep 'task-clock' "$FILE" | awk '{print $1}' | tr -d ,)
-                CYCLES=$(grep 'cycles' "$FILE" | awk '{print $1}' | tr -d ,)
-                INSTR=$(grep 'instructions' "$FILE" | awk '{print $1}' | tr -d ,)
-                CACHE_MISS=$(grep 'cache-misses' "$FILE" | awk '{print $1}' | tr -d ,)
-                CTX_SWITCH=$(grep 'context-switches' "$FILE" | awk '{print $1}' | tr -d ,)
-                MIN_FAULTS=$(grep 'minor-faults' "$FILE" | awk '{print $1}' | tr -d ,)
-                MAJ_FAULTS=$(grep 'major-faults' "$FILE" | awk '{print $1}' | tr -d ,)
-                ELAPSED=$(grep 'seconds time elapsed' "$FILE" | awk '{print $1}')
-                UTIL=$(grep 'Estimated CPU utilization' "$FILE" | awk -F': ' '{print $2}' | tr -d '%')
-                MAX_RSS=$(grep 'Maximum resident set size' "$FILE" | awk -F': ' '{print $2}')
+            if [ -f "$PERF_FILE" ]; then
+                MAX_CHAR_TIME=""
+                if [ -f "$LOG_FILE" ]; then
+                    MAX_CHAR_TIME=$(grep -i 'Parallel max-char computation time' "$LOG_FILE" | awk '{print $(NF-1)}')
+                fi
+
+                TASK_CLOCK=$(grep 'task-clock' "$PERF_FILE" | awk '{print $1}' | tr -d ,)
+                CYCLES=$(grep 'cycles' "$PERF_FILE" | awk '{print $1}' | tr -d ,)
+                INSTR=$(grep 'instructions' "$PERF_FILE" | awk '{print $1}' | tr -d ,)
+                CACHE_MISS=$(grep 'cache-misses' "$PERF_FILE" | awk '{print $1}' | tr -d ,)
+                CTX_SWITCH=$(grep 'context-switches' "$PERF_FILE" | awk '{print $1}' | tr -d ,)
+                MIN_FAULTS=$(grep 'minor-faults' "$PERF_FILE" | awk '{print $1}' | tr -d ,)
+                MAJ_FAULTS=$(grep 'major-faults' "$PERF_FILE" | awk '{print $1}' | tr -d ,)
+                ELAPSED=$(grep 'seconds time elapsed' "$PERF_FILE" | awk '{print $1}')
+                UTIL=$(grep 'Estimated CPU utilization' "$PERF_FILE" | awk -F': ' '{print $2}' | tr -d '%')
+                MAX_RSS=$(grep 'Maximum resident set size' "$PERF_FILE" | awk -F': ' '{print $2}')
 
                 echo "$VERSION,$LINE_COUNT,$THREADS,$RUN,$TASK_CLOCK,$CYCLES,$INSTR,$CACHE_MISS,$CTX_SWITCH,$MIN_FAULTS,$MAJ_FAULTS,$ELAPSED,$UTIL,$MAX_RSS,$MAX_CHAR_TIME" >> "$OUTPUT_FILE"
             fi

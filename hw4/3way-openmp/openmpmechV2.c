@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
+
     //************************DIFFERENT SECTION START************************
     size_t *newline_positions = malloc(max_lines * sizeof(size_t));
     if (!newline_positions) {
@@ -92,7 +93,9 @@ int main(int argc, char *argv[]) {
         munmap(data, file_size);
         close(fd);
         free(newline_positions);
-        free(line_ptrs); free(line_lens); free(results);
+        if (line_ptrs) free(line_ptrs);
+        if (line_lens) free(line_lens);
+        if (results) free(results);
         return 1;
     }
 
@@ -100,6 +103,15 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < total_lines; i++) {
         size_t start = (i == 0) ? 0 : newline_positions[i - 1] + 1;
         size_t end = newline_positions[i];
+
+        // Guard against out-of-bounds accesses
+        if (start >= file_size || end > file_size || end < start) {
+            fprintf(stderr, "Skipping malformed line %d (start: %zu, end: %zu)\n", i, start, end);
+            line_ptrs[i] = NULL;
+            line_lens[i] = 0;
+            continue;
+        }
+
         line_ptrs[i] = &data[start];
         line_lens[i] = end - start;
     }
@@ -107,17 +119,22 @@ int main(int argc, char *argv[]) {
     free(newline_positions);
     printf("Total lines parsed: %d\n", total_lines);
     //************************DIFFERENT SECTION END************************
+
     // Time and run the parallel computation
-    FILE *log = fopen("perf_stat_summary.txt", "a");
+    FILE *log = fopen("custom_log.txt", "w");
     if (!log) {
-        perror("Failed to open perf_stat_summary.txt");
+        perror("Failed to open custom_log.txt");
         return 1;
     }
     double start_time = omp_get_wtime();
 
     #pragma omp parallel for
     for (int i = 0; i < total_lines; i++) {
-        results[i] = find_max_ascii(line_ptrs[i], line_lens[i]);
+        if (line_ptrs[i] != NULL && line_lens[i] > 0) {
+            results[i] = find_max_ascii(line_ptrs[i], line_lens[i]);
+        } else {
+            results[i] = -1; // invalid line
+        }
     }
 
     double end_time = omp_get_wtime();
@@ -128,6 +145,7 @@ int main(int argc, char *argv[]) {
         printf("%d: %d\n", i, results[i]);
     }
 
+    // Cleanup memory
     munmap(data, file_size);
     close(fd);
     free(line_ptrs);
