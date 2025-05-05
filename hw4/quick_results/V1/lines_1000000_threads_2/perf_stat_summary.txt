@@ -1,5 +1,0 @@
-# started on Sun May  4 23:29:11 2025
-
-
-	Maximum resident set size (kbytes): 10720
-Estimated CPU utilization: 
