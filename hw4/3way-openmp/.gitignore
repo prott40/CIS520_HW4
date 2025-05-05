@@ -8,3 +8,5 @@ module_load.sh
 results/
 previous_results/
 run_openmpBACK.sh
+quick_results/
+previous_quick_results/
